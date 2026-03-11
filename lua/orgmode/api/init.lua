@@ -116,4 +116,33 @@ function OrgApi.insert_link(link_location)
   return orgmode.links:insert_link(link_location)
 end
 
+--- Archive all headings with the :ARCHIVE: tag in the current file
+--- @return OrgPromise<number> number of archived headlines
+function OrgApi.archive_all()
+  local current_file = OrgApi.current()
+  local internal_file = current_file._file
+  local headlines = internal_file:get_headlines_including_archived()
+
+  local headlines_to_archive = {}
+
+  for _, headline in ipairs(headlines) do
+    if headline:is_archived() then
+      table.insert(headlines_to_archive, headline)
+    end
+  end
+
+  return Promise.resolve()
+    :next(function()
+      local result = Promise.resolve()
+      for _, headline in ipairs(headlines_to_archive) do
+        result = result:next(function()
+          return orgmode.capture:refile_file_headline_to_archive(headline)
+        end)
+      end
+      return result:next(function()
+        return #headlines_to_archive
+      end)
+    end)
+end
+
 return OrgApi
