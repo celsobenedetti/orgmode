@@ -145,4 +145,44 @@ function OrgApi.archive_all()
     end)
 end
 
+--- Set the :ARCHIVE: tag on all DONE tasks in the current file
+--- @return OrgPromise<number> number of tagged headlines
+function OrgApi.set_archive_tag_on_done_tasks()
+  local current_file = OrgApi.current()
+  local internal_file = current_file._file
+  local headlines = internal_file:get_headlines()
+
+  local done_headlines = {}
+
+  for _, headline in ipairs(headlines) do
+    if headline:is_done() then
+      table.insert(done_headlines, headline)
+    end
+  end
+
+  return Promise.resolve()
+    :next(function()
+      local result = Promise.resolve()
+      for _, headline in ipairs(done_headlines) do
+        local tags = headline:get_tags()
+        local has_archive = false
+        for _, tag in ipairs(tags) do
+          if tag:upper() == 'ARCHIVE' then
+            has_archive = true
+            break
+          end
+        end
+        if not has_archive then
+          table.insert(tags, 'ARCHIVE')
+          result = result:next(function()
+            return headline:set_tags(tags)
+          end)
+        end
+      end
+      return result:next(function()
+        return #done_headlines
+      end)
+    end)
+end
+
 return OrgApi
